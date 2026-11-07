@@ -65,23 +65,25 @@ function storeRequest(storeName, mode, operation) {
   });
 }
 
-async function seedInitialData() {
-  const seeded = await storeRequest(SETTINGS, "readonly", (store) => store.get("excelSeeded"));
-  if (seeded) return;
+function isLegacyExampleRecord(record) {
+  return Boolean(record
+    && record.date === "2026-11-06"
+    && record.weight === 76.2
+    && record.abdominalFold === 14.5
+    && record.glutes === null
+    && record.waistNavel === null
+    && record.thighUnderGlute === null
+    && record.notes === "Valori iniziali importati dal calendario Excel");
+}
+
+async function removeLegacyExampleData() {
+  const migration = await storeRequest(SETTINGS, "readonly", (store) => store.get("legacyExampleRemoved"));
+  if (migration) return;
   const existing = await storeRequest(STORE, "readonly", (store) => store.get("2026-11-06"));
-  if (!existing) {
-    await storeRequest(STORE, "readwrite", (store) => store.put({
-      date: "2026-11-06",
-      weight: 76.2,
-      abdominalFold: 14.5,
-      glutes: null,
-      waistNavel: null,
-      thighUnderGlute: null,
-      notes: "Valori iniziali importati dal calendario Excel",
-      updatedAt: new Date().toISOString()
-    }));
+  if (isLegacyExampleRecord(existing)) {
+    await storeRequest(STORE, "readwrite", (store) => store.delete("2026-11-06"));
   }
-  await storeRequest(SETTINGS, "readwrite", (store) => store.put({ key: "excelSeeded", value: true }));
+  await storeRequest(SETTINGS, "readwrite", (store) => store.put({ key: "legacyExampleRemoved", value: true }));
 }
 
 async function loadRecords() {
@@ -422,9 +424,45 @@ function downloadFile(name, content, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function exportJson() {
+function buildBackupFile() {
   const payload = { app: "Misure & Progressi", version: 1, exportedAt: new Date().toISOString(), records };
-  downloadFile(`misure-backup-${localISODate()}.json`, JSON.stringify(payload, null, 2), "application/json");
+  const name = `misure-backup-${localISODate()}.json`;
+  const content = JSON.stringify(payload, null, 2);
+  return { name, content, file: new File([content], name, { type: "application/json" }) };
+}
+
+function exportJson() {
+  const backup = buildBackupFile();
+  downloadFile(backup.name, backup.content, "application/json");
+}
+
+async function shareBackup() {
+  const backup = buildBackupFile();
+  const shareData = {
+    title: "Backup Misure & Progressi",
+    text: "Backup completo dell’archivio Misure & Progressi",
+    files: [backup.file]
+  };
+  try {
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: shareData.files }))) {
+      await navigator.share(shareData);
+      $("shareMessage").textContent = "Backup affidato al menu di condivisione del dispositivo.";
+      $("shareMessage").classList.remove("error");
+      return;
+    }
+    downloadFile(backup.name, backup.content, "application/json");
+    $("shareMessage").textContent = "Il menu di condivisione non è disponibile: il backup è stato scaricato normalmente.";
+    $("shareMessage").classList.remove("error");
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      $("shareMessage").textContent = "Condivisione annullata; nessun dato è stato modificato.";
+      $("shareMessage").classList.remove("error");
+      return;
+    }
+    downloadFile(backup.name, backup.content, "application/json");
+    $("shareMessage").textContent = "Condivisione non disponibile: il backup è stato scaricato normalmente.";
+    $("shareMessage").classList.remove("error");
+  }
 }
 
 function exportCsv(data = records, suffix = "archivio") {
@@ -540,6 +578,7 @@ function bindEvents() {
     $("date").value = date; populateForm(date); switchTab("entry"); window.scrollTo({ top: 0, behavior: "smooth" });
   });
   $("exportJsonBtn").addEventListener("click", exportJson);
+  $("shareBackupBtn").addEventListener("click", shareBackup);
   $("exportCsvBtn").addEventListener("click", () => exportCsv(records));
   $("exportPeriodCsvBtn").addEventListener("click", () => exportCsv(periodRecords(), "periodo"));
   $("importFile").addEventListener("change", (e) => e.target.files[0] && importFile(e.target.files[0]));
@@ -569,7 +608,7 @@ async function init() {
   try {
     setDefaultDates(); bindEvents(); updateConnectionStatus();
     db = await openDatabase();
-    await seedInitialData();
+    await removeLegacyExampleData();
     await loadRecords();
     populateForm($("date").value);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
