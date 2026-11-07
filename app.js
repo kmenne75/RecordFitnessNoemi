@@ -110,8 +110,19 @@ async function saveRecord(event) {
   const record = { date, notes: $("notes").value.trim(), updatedAt: new Date().toISOString() };
   let hasMeasurement = false;
   for (const key of Object.keys(METRICS)) {
-    record[key] = toNumber($(key).value);
-    if (record[key] !== null) hasMeasurement = true;
+    const input = $(key);
+    record[key] = toNumber(input.value);
+    if (input.value.trim() && record[key] === null) {
+      return showFormMessage(`Il valore di ${METRICS[key].label.toLowerCase()} non è valido. Usa cifre e, se necessario, la virgola o il punto.`, true);
+    }
+    if (record[key] !== null) {
+      const min = Number(input.dataset.min);
+      const max = Number(input.dataset.max);
+      if (record[key] < min || record[key] > max) {
+        return showFormMessage(`${METRICS[key].label}: inserisci un valore compreso tra ${min} e ${max} ${METRICS[key].unit}.`, true);
+      }
+      hasMeasurement = true;
+    }
   }
   if (!hasMeasurement && !record.notes) return showFormMessage("Inserisci almeno una misura o una nota.", true);
   await storeRequest(STORE, "readwrite", (store) => store.put(record));
