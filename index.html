@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#123b35">
+  <meta name="description" content="Diario personale offline per peso, plica e circonferenze corporee.">
+  <title>Misure & Progressi</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Diario personale offline</p>
+      <h1>Misure & Progressi</h1>
+    </div>
+    <button id="installBtn" class="button secondary compact hidden" type="button">Installa app</button>
+  </header>
+
+  <main class="app-shell">
+    <section class="hero-card" aria-labelledby="heroTitle">
+      <div>
+        <p class="eyebrow">Panoramica</p>
+        <h2 id="heroTitle">Segui l’andamento, non il singolo numero.</h2>
+        <p>Registra le misure per data, confronta le medie settimanali e consulta lo storico nel periodo che preferisci.</p>
+      </div>
+      <div class="hero-metric">
+        <span>Ultimo peso</span>
+        <strong id="latestWeight">—</strong>
+        <small id="latestWeightDate">Nessuna registrazione</small>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Sezioni dell'app">
+      <button class="tab active" data-tab="entry" type="button">Registra</button>
+      <button class="tab" data-tab="history" type="button">Andamento</button>
+      <button class="tab" data-tab="archive" type="button">Archivio</button>
+    </nav>
+
+    <section id="entry" class="panel active" aria-labelledby="entryTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Registrazione giornaliera</p>
+          <h2 id="entryTitle">Inserisci o aggiorna le misure</h2>
+        </div>
+        <span id="recordState" class="status-pill">Nuova registrazione</span>
+      </div>
+
+      <form id="entryForm" class="entry-form">
+        <label class="field field-wide">
+          <span>Data</span>
+          <input id="date" name="date" type="date" required>
+          <small>Preimpostata sulla data odierna; puoi scegliere qualsiasi giorno dal calendario.</small>
+        </label>
+
+        <label class="field">
+          <span>Peso (kg)</span>
+          <input id="weight" name="weight" type="number" min="20" max="400" step="0.01" inputmode="decimal" placeholder="es. 76,20">
+        </label>
+        <label class="field">
+          <span>Plica addominale (mm)</span>
+          <input id="abdominalFold" name="abdominalFold" type="number" min="1" max="100" step="0.1" inputmode="decimal" placeholder="es. 14,5">
+        </label>
+        <label class="field">
+          <span>Glutei (cm)</span>
+          <input id="glutes" name="glutes" type="number" min="30" max="250" step="0.1" inputmode="decimal" placeholder="es. 98,0">
+        </label>
+        <label class="field">
+          <span>Vita ombellico (cm)</span>
+          <input id="waistNavel" name="waistNavel" type="number" min="30" max="250" step="0.1" inputmode="decimal" placeholder="es. 84,0">
+        </label>
+        <label class="field">
+          <span>Coscia sotto gluteo (cm)</span>
+          <input id="thighUnderGlute" name="thighUnderGlute" type="number" min="20" max="150" step="0.1" inputmode="decimal" placeholder="es. 58,0">
+        </label>
+        <label class="field field-wide">
+          <span>Note</span>
+          <textarea id="notes" name="notes" rows="3" maxlength="500" placeholder="Condizioni della misurazione, allenamento, osservazioni…"></textarea>
+        </label>
+
+        <div class="form-actions field-wide">
+          <button class="button primary" type="submit">Salva registrazione</button>
+          <button id="clearFormBtn" class="button secondary" type="button">Svuota campi</button>
+          <button id="deleteRecordBtn" class="button danger hidden" type="button">Elimina questa data</button>
+        </div>
+      </form>
+      <p id="formMessage" class="message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="history" class="panel" aria-labelledby="historyTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Medie e storico</p>
+          <h2 id="historyTitle">Analizza il periodo</h2>
+        </div>
+      </div>
+
+      <form id="filterForm" class="filter-bar">
+        <label class="field"><span>Dal</span><input id="fromDate" type="date"></label>
+        <label class="field"><span>Al</span><input id="toDate" type="date"></label>
+        <label class="field"><span>Misura nel grafico</span>
+          <select id="metricSelect">
+            <option value="weight">Peso (kg)</option>
+            <option value="abdominalFold">Plica addominale (mm)</option>
+            <option value="glutes">Glutei (cm)</option>
+            <option value="waistNavel">Vita ombellico (cm)</option>
+            <option value="thighUnderGlute">Coscia sotto gluteo (cm)</option>
+          </select>
+        </label>
+        <button class="button primary align-end" type="submit">Aggiorna analisi</button>
+      </form>
+
+      <div id="summaryCards" class="summary-grid"></div>
+
+      <article class="chart-card">
+        <div class="chart-heading">
+          <div>
+            <p class="eyebrow">Serie temporale</p>
+            <h3 id="chartTitle">Peso e media mobile 7 giorni</h3>
+          </div>
+          <div class="legend"><span><i class="dot raw"></i>Valore</span><span><i class="dot avg"></i>Media 7 gg</span></div>
+        </div>
+        <div class="chart-wrap"><canvas id="trendChart" aria-label="Grafico andamento misure"></canvas></div>
+        <p id="chartEmpty" class="empty-state hidden">Nessun dato disponibile per questa misura nel periodo selezionato.</p>
+      </article>
+
+      <article class="table-card">
+        <div class="section-heading compact-heading">
+          <div><p class="eyebrow">Dettaglio</p><h3>Registrazioni nel periodo</h3></div>
+          <button id="exportPeriodCsvBtn" class="button secondary compact" type="button">Esporta periodo CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Peso</th><th>Plica</th><th>Glutei</th><th>Vita</th><th>Coscia</th><th>Note</th><th></th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="archive" class="panel" aria-labelledby="archiveTitle">
+      <div class="section-heading">
+        <div><p class="eyebrow">Gestione dati</p><h2 id="archiveTitle">Archivio locale</h2></div>
+        <span id="archiveCount" class="status-pill">0 registrazioni</span>
+      </div>
+
+      <div class="archive-grid">
+        <article class="action-card">
+          <h3>Esporta</h3>
+          <p>Scarica una copia completa dell’archivio. JSON conserva tutti i campi; CSV è comodo per Excel.</p>
+          <div class="stack-actions">
+            <button id="exportJsonBtn" class="button primary" type="button">Esporta JSON</button>
+            <button id="exportCsvBtn" class="button secondary" type="button">Esporta CSV</button>
+          </div>
+        </article>
+
+        <article class="action-card">
+          <h3>Importa</h3>
+          <p>Importa un backup JSON o CSV. Le date già presenti vengono aggiornate; le altre vengono aggiunte.</p>
+          <label class="file-picker">Scegli file<input id="importFile" type="file" accept=".json,.csv,application/json,text/csv"></label>
+          <p id="importMessage" class="message" role="status" aria-live="polite"></p>
+        </article>
+
+        <article class="action-card danger-zone">
+          <h3>Cancella archivio</h3>
+          <p>Elimina definitivamente tutte le registrazioni salvate su questo dispositivo.</p>
+          <button id="deleteArchiveBtn" class="button danger" type="button">Cancella tutto</button>
+        </article>
+      </div>
+
+      <article class="privacy-card">
+        <h3>Dove sono salvati i dati?</h3>
+        <p>I dati restano nel database locale del browser e l’app funziona anche offline dopo il primo caricamento. Usa regolarmente l’esportazione per conservare una copia di sicurezza.</p>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="confirmDialog">
+    <form method="dialog" class="dialog-card">
+      <h2 id="dialogTitle">Conferma operazione</h2>
+      <p id="dialogText"></p>
+      <label id="confirmLabel" class="field hidden"><span>Scrivi CANCELLA per confermare</span><input id="confirmInput" autocomplete="off"></label>
+      <div class="form-actions">
+        <button value="cancel" class="button secondary">Annulla</button>
+        <button id="dialogConfirmBtn" value="confirm" class="button danger">Conferma</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer><span>Misure & Progressi</span><span id="offlineStatus">Pronta per l’uso offline</span></footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
