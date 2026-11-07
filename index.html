@@ -126,6 +126,41 @@
         <p id="chartEmpty" class="empty-state hidden">Nessun dato disponibile per questa misura nel periodo selezionato.</p>
       </article>
 
+      <article class="chart-card aggregate-card">
+        <div class="chart-heading">
+          <div>
+            <p class="eyebrow">Trend medi aggregati</p>
+            <h3 id="aggregateChartTitle">Media settimanale del peso</h3>
+          </div>
+          <div class="legend"><span><i class="dot avg"></i>Media del periodo</span></div>
+        </div>
+
+        <form id="aggregateFilterForm" class="filter-bar aggregate-filter">
+          <label class="field"><span>Dal</span><input id="aggregateFromDate" type="date"></label>
+          <label class="field"><span>Al</span><input id="aggregateToDate" type="date"></label>
+          <label class="field"><span>Misura da analizzare</span>
+            <select id="aggregateMetricSelect">
+              <option value="weight">Peso (kg)</option>
+              <option value="abdominalFold">Plica addominale (mm)</option>
+              <option value="glutes">Glutei (cm)</option>
+              <option value="waistNavel">Vita ombellico (cm)</option>
+              <option value="thighUnderGlute">Coscia sotto gluteo (cm)</option>
+            </select>
+          </label>
+          <label class="field"><span>Raggruppamento</span>
+            <select id="aggregatePeriodSelect">
+              <option value="week">Settimanale</option>
+              <option value="month">Mensile</option>
+            </select>
+          </label>
+          <button class="button primary align-end" type="submit">Aggiorna trend</button>
+        </form>
+
+        <div id="aggregateSummary" class="aggregate-summary"></div>
+        <div class="chart-wrap"><canvas id="aggregateTrendChart" aria-label="Grafico delle medie settimanali o mensili"></canvas></div>
+        <p id="aggregateChartEmpty" class="empty-state hidden">Nessun dato disponibile per questa misura e finestra temporale.</p>
+      </article>
+
       <article class="table-card">
         <div class="section-heading compact-heading">
           <div><p class="eyebrow">Dettaglio</p><h3>Registrazioni nel periodo</h3></div>

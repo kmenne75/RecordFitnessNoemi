@@ -23,6 +23,9 @@ I dati sono salvati nel browser tramite IndexedDB. L'app include, al primo avvio
 BACKUP
 Usare Archivio > Esporta JSON per il backup completo. Il CSV è pensato per consultazione e scambio con Excel. L'importazione accetta i backup JSON prodotti dall'app e i CSV con le stesse colonne dell'esportazione.
 
+TREND MEDI
+Nella sezione Andamento è disponibile una scheda aggiuntiva per analizzare una misura a scelta con raggruppamento settimanale o mensile. La finestra temporale può essere impostata liberamente tramite le date Dal e Al; ogni punto del grafico rappresenta la media delle rilevazioni disponibili nel relativo periodo.
+
 CAMPI REGISTRATI
 - Data
 - Peso (kg)

@@ -267,6 +267,120 @@ function drawLine(ctx, points, getter, x, y, color, width) {
   ctx.stroke();
 }
 
+function aggregatePeriodRecords() {
+  const from = $("aggregateFromDate").value;
+  const to = $("aggregateToDate").value;
+  return records.filter((record) => (!from || record.date >= from) && (!to || record.date <= to));
+}
+
+function periodKey(dateValue, grouping) {
+  const date = parseISODate(dateValue);
+  if (grouping === "month") return `${dateValue.slice(0, 7)}-01`;
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() - day + 1);
+  return localISODate(date);
+}
+
+function aggregateByPeriod(data, metricKey, grouping) {
+  const groups = new Map();
+  data.forEach((record) => {
+    if (!Number.isFinite(record[metricKey])) return;
+    const key = periodKey(record.date, grouping);
+    if (!groups.has(key)) groups.set(key, { key, sum: 0, count: 0 });
+    const group = groups.get(key);
+    group.sum += record[metricKey];
+    group.count += 1;
+  });
+  return [...groups.values()].sort((a, b) => a.key.localeCompare(b.key)).map((group) => ({
+    ...group,
+    average: group.sum / group.count
+  }));
+}
+
+function aggregateLabel(key, grouping, compact = false) {
+  const start = parseISODate(key);
+  if (grouping === "month") {
+    return new Intl.DateTimeFormat("it-IT", { month: compact ? "short" : "long", year: "numeric" }).format(start);
+  }
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const formatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short" });
+  return compact ? formatter.format(start) : `${formatter.format(start)} – ${formatter.format(end)}`;
+}
+
+function refreshAggregateSummary(groups, metricKey, grouping) {
+  const container = $("aggregateSummary");
+  if (!groups.length) { container.innerHTML = ""; return; }
+  const metric = METRICS[metricKey];
+  const delta = groups.length > 1 ? groups.at(-1).average - groups[0].average : null;
+  const label = grouping === "week" ? "settimane" : "mesi";
+  container.innerHTML = `<span class="aggregate-chip"><strong>${groups.length}</strong> ${label} con dati</span>
+    <span class="aggregate-chip">Prima media: <strong>${formatValue(groups[0].average, metricKey)}</strong></span>
+    <span class="aggregate-chip">Ultima media: <strong>${formatValue(groups.at(-1).average, metricKey)}</strong></span>
+    <span class="aggregate-chip">Variazione: <strong>${delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta.toLocaleString("it-IT", { maximumFractionDigits: metric.decimals })} ${metric.unit}`}</strong></span>`;
+}
+
+function drawAggregateChart(groups, metricKey, grouping) {
+  const canvas = $("aggregateTrendChart");
+  const wrap = canvas.parentElement;
+  const metric = METRICS[metricKey];
+  const periodName = grouping === "week" ? "settimanale" : "mensile";
+  $("aggregateChartTitle").textContent = `Media ${periodName} · ${metric.label}`;
+  $("aggregateChartEmpty").classList.toggle("hidden", groups.length > 0);
+  wrap.classList.toggle("hidden", groups.length === 0);
+  if (!groups.length) return;
+
+  const ratio = Math.max(1, window.devicePixelRatio || 1);
+  const width = wrap.clientWidth;
+  const height = wrap.clientHeight;
+  if (!width || !height) return;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+  ctx.clearRect(0, 0, width, height);
+
+  const values = groups.map((group) => group.average);
+  let min = Math.min(...values), max = Math.max(...values);
+  const paddingValue = Math.max((max - min) * .15, metric.unit === "kg" ? .5 : 1);
+  min -= paddingValue; max += paddingValue;
+  const pad = { left: 52, right: 18, top: 18, bottom: 46 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+  const x = (i) => pad.left + (groups.length === 1 ? plotW / 2 : i * plotW / (groups.length - 1));
+  const y = (value) => pad.top + (max - value) * plotH / (max - min || 1);
+
+  ctx.font = "12px system-ui";
+  ctx.strokeStyle = "#d8ddd7";
+  ctx.fillStyle = "#64736f";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const value = max - (max - min) * i / 4;
+    const yy = pad.top + plotH * i / 4;
+    ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
+    ctx.fillText(value.toFixed(metric.decimals), 4, yy + 4);
+  }
+  const labelIndexes = [...new Set([0, Math.floor((groups.length - 1) / 2), groups.length - 1])];
+  labelIndexes.forEach((i) => {
+    const text = aggregateLabel(groups[i].key, grouping, true);
+    ctx.fillText(text, Math.max(pad.left, Math.min(x(i) - 26, width - 75)), height - 13);
+  });
+
+  drawLine(ctx, groups, (group) => group.average, x, y, "#1d6257", 3);
+  groups.forEach((group, i) => {
+    ctx.fillStyle = "#d8a84e";
+    ctx.beginPath(); ctx.arc(x(i), y(group.average), 4, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function refreshAggregateAnalysis() {
+  const metricKey = $("aggregateMetricSelect").value;
+  const grouping = $("aggregatePeriodSelect").value;
+  const groups = aggregateByPeriod(aggregatePeriodRecords(), metricKey, grouping);
+  refreshAggregateSummary(groups, metricKey, grouping);
+  drawAggregateChart(groups, metricKey, grouping);
+}
+
 function refreshAnalysis() {
   const data = periodRecords();
   refreshSummary(data);
@@ -285,6 +399,7 @@ function refreshOverview() {
 function refreshAll() {
   refreshOverview();
   refreshAnalysis();
+  refreshAggregateAnalysis();
 }
 
 function csvEscape(value) {
@@ -399,12 +514,14 @@ function setDefaultDates() {
   const yearStart = `${today.slice(0, 4)}-01-01`;
   $("fromDate").value = yearStart;
   $("toDate").value = today;
+  $("aggregateFromDate").value = yearStart;
+  $("aggregateToDate").value = today;
 }
 
 function switchTab(id) {
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === id));
   document.querySelectorAll(".panel").forEach((panel) => panel.classList.toggle("active", panel.id === id));
-  if (id === "history") setTimeout(refreshAnalysis, 10);
+  if (id === "history") setTimeout(() => { refreshAnalysis(); refreshAggregateAnalysis(); }, 10);
 }
 
 function bindEvents() {
@@ -414,6 +531,9 @@ function bindEvents() {
   $("clearFormBtn").addEventListener("click", clearForm);
   $("filterForm").addEventListener("submit", (e) => { e.preventDefault(); refreshAnalysis(); });
   $("metricSelect").addEventListener("change", refreshAnalysis);
+  $("aggregateFilterForm").addEventListener("submit", (e) => { e.preventDefault(); refreshAggregateAnalysis(); });
+  $("aggregateMetricSelect").addEventListener("change", refreshAggregateAnalysis);
+  $("aggregatePeriodSelect").addEventListener("change", refreshAggregateAnalysis);
   $("historyBody").addEventListener("click", (e) => {
     const date = e.target.dataset.editDate;
     if (!date) return;
@@ -430,7 +550,12 @@ function bindEvents() {
     if ($("confirmDialog").returnValue === "confirm" && pendingConfirmAction) await pendingConfirmAction();
     pendingConfirmAction = null;
   });
-  window.addEventListener("resize", () => { if ($("history").classList.contains("active")) drawChart(periodRecords(), $("metricSelect").value); });
+  window.addEventListener("resize", () => {
+    if ($("history").classList.contains("active")) {
+      drawChart(periodRecords(), $("metricSelect").value);
+      refreshAggregateAnalysis();
+    }
+  });
   window.addEventListener("beforeinstallprompt", (event) => { event.preventDefault(); deferredInstallPrompt = event; $("installBtn").classList.remove("hidden"); });
   $("installBtn").addEventListener("click", async () => { if (!deferredInstallPrompt) return; deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt = null; $("installBtn").classList.add("hidden"); });
   window.addEventListener("online", updateConnectionStatus); window.addEventListener("offline", updateConnectionStatus);
