@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#123b35">
-  <meta name="description" content="Diario personale offline per peso, plica e circonferenze corporee.">
-  <title>Misure & Progressi</title>
+  <meta name="description" content="Diario personale offline per misure corporee e progressi fitness.">
+  <title>MisureFitness</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=1.0.0">
 </head>
 <body>
   <header class="app-header">
     <div>
       <p class="eyebrow">Diario personale offline</p>
-      <h1>Misure & Progressi</h1>
+      <h1>MisureFitness</h1>
     </div>
     <button id="installBtn" class="button secondary compact hidden" type="button">Installa app</button>
   </header>
@@ -24,7 +24,7 @@
       <div>
         <p class="eyebrow">Panoramica</p>
         <h2 id="heroTitle">Segui l’andamento, non il singolo numero.</h2>
-        <p>Registra le misure per data, confronta le medie settimanali e consulta lo storico nel periodo che preferisci.</p>
+        <p>Registra nove misure corporee per data, confronta medie e progressi e consulta lo storico nel periodo che preferisci.</p>
       </div>
       <div class="hero-metric">
         <span>Ultimo peso</span>
@@ -64,16 +64,32 @@
           <input id="abdominalFold" name="abdominalFold" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="1" data-max="100" placeholder="es. 14,5">
         </label>
         <label class="field">
-          <span>Glutei (cm)</span>
-          <input id="glutes" name="glutes" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="30" data-max="250" placeholder="es. 98,0">
+          <span>Plica interno coscia (mm)</span>
+          <input id="innerThighFold" name="innerThighFold" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="1" data-max="100" placeholder="es. 18,0">
         </label>
         <label class="field">
-          <span>Vita ombellico (cm)</span>
-          <input id="waistNavel" name="waistNavel" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="30" data-max="250" placeholder="es. 84,0">
+          <span>Spalle (cm)</span>
+          <input id="shoulders" name="shoulders" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="30" data-max="250" placeholder="es. 118,0">
         </label>
         <label class="field">
-          <span>Coscia sotto gluteo (cm)</span>
-          <input id="thighUnderGlute" name="thighUnderGlute" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="20" data-max="150" placeholder="es. 58,0">
+          <span>Torace (cm)</span>
+          <input id="chest" name="chest" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="30" data-max="250" placeholder="es. 102,0">
+        </label>
+        <label class="field">
+          <span>Bicipite (cm)</span>
+          <input id="biceps" name="biceps" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="10" data-max="100" placeholder="es. 36,0">
+        </label>
+        <label class="field">
+          <span>Vita (cm)</span>
+          <input id="waist" name="waist" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="30" data-max="250" placeholder="es. 84,0">
+        </label>
+        <label class="field">
+          <span>Fianchi (cm)</span>
+          <input id="hips" name="hips" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="30" data-max="250" placeholder="es. 98,0">
+        </label>
+        <label class="field">
+          <span>Coscia (cm)</span>
+          <input id="thigh" name="thigh" type="text" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-min="20" data-max="150" placeholder="es. 58,0">
         </label>
         <label class="field field-wide">
           <span>Note</span>
@@ -104,9 +120,13 @@
           <select id="metricSelect">
             <option value="weight">Peso (kg)</option>
             <option value="abdominalFold">Plica addominale (mm)</option>
-            <option value="glutes">Glutei (cm)</option>
-            <option value="waistNavel">Vita ombellico (cm)</option>
-            <option value="thighUnderGlute">Coscia sotto gluteo (cm)</option>
+            <option value="innerThighFold">Plica interno coscia (mm)</option>
+            <option value="shoulders">Spalle (cm)</option>
+            <option value="chest">Torace (cm)</option>
+            <option value="biceps">Bicipite (cm)</option>
+            <option value="waist">Vita (cm)</option>
+            <option value="hips">Fianchi (cm)</option>
+            <option value="thigh">Coscia (cm)</option>
           </select>
         </label>
         <button class="button primary align-end" type="submit">Aggiorna analisi</button>
@@ -142,9 +162,13 @@
             <select id="aggregateMetricSelect">
               <option value="weight">Peso (kg)</option>
               <option value="abdominalFold">Plica addominale (mm)</option>
-              <option value="glutes">Glutei (cm)</option>
-              <option value="waistNavel">Vita ombellico (cm)</option>
-              <option value="thighUnderGlute">Coscia sotto gluteo (cm)</option>
+              <option value="innerThighFold">Plica interno coscia (mm)</option>
+              <option value="shoulders">Spalle (cm)</option>
+              <option value="chest">Torace (cm)</option>
+              <option value="biceps">Bicipite (cm)</option>
+              <option value="waist">Vita (cm)</option>
+              <option value="hips">Fianchi (cm)</option>
+              <option value="thigh">Coscia (cm)</option>
             </select>
           </label>
           <label class="field"><span>Raggruppamento</span>
@@ -168,7 +192,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Data</th><th>Peso</th><th>Plica</th><th>Glutei</th><th>Vita</th><th>Coscia</th><th>Note</th><th></th></tr></thead>
+            <thead><tr><th>Data</th><th>Peso</th><th>Plica add.</th><th>Plica coscia</th><th>Spalle</th><th>Torace</th><th>Bicipite</th><th>Vita</th><th>Fianchi</th><th>Coscia</th><th>Note</th><th></th></tr></thead>
             <tbody id="historyBody"></tbody>
           </table>
         </div>
@@ -184,7 +208,7 @@
       <div class="archive-grid">
         <article class="action-card">
           <h3>Esporta</h3>
-          <p>Scarica una copia completa dell’archivio. JSON conserva tutti i campi; CSV è comodo per Excel.</p>
+          <p>Scarica una copia completa dell’archivio con tutte le nove misure. JSON conserva tutti i campi; CSV è comodo per Excel.</p>
           <div class="stack-actions">
             <button id="exportJsonBtn" class="button primary" type="button">Esporta JSON</button>
             <button id="shareBackupBtn" class="button secondary" type="button">Condividi e salva backup</button>
@@ -195,7 +219,7 @@
 
         <article class="action-card">
           <h3>Importa</h3>
-          <p>Importa un backup JSON o CSV. Le date già presenti vengono aggiornate; le altre vengono aggiunte.</p>
+          <p>Importa backup MisureFitness e backup precedenti di Misure & Progressi. Le date già presenti vengono aggiornate; le altre vengono aggiunte.</p>
           <label class="file-picker">Scegli file<input id="importFile" type="file" accept=".json,.csv,application/json,text/csv"></label>
           <p id="importMessage" class="message" role="status" aria-live="polite"></p>
         </article>
@@ -209,7 +233,7 @@
 
       <article class="privacy-card">
         <h3>Dove sono salvati i dati?</h3>
-        <p>I dati restano nel database locale del browser e l’app funziona anche offline dopo il primo caricamento. Usa regolarmente l’esportazione per conservare una copia di sicurezza.</p>
+        <p>I dati restano nel database locale del browser. L’aggiornamento da Misure & Progressi migra automaticamente i valori esistenti senza cancellarli e l’app funziona offline dopo il primo caricamento. Usa regolarmente l’esportazione per conservare una copia di sicurezza.</p>
       </article>
     </section>
   </main>
@@ -226,7 +250,7 @@
     </form>
   </dialog>
 
-  <footer><span>Misure & Progressi</span><span id="offlineStatus">Pronta per l’uso offline</span></footer>
-  <script src="app.js" defer></script>
+  <footer><span>MisureFitness v1.0</span><span id="offlineStatus">Pronta per l’uso offline</span></footer>
+  <script src="app.js?v=1.0.0" defer></script>
 </body>
 </html>

@@ -1,35 +1,54 @@
-MISURE & PROGRESSI — PWA
+MISUREFITNESS — PWA v1.0.0
+
+DESCRIZIONE
+MisureFitness è una PWA offline-first per registrare e analizzare nove misure corporee:
+1. Peso (kg)
+2. Plica addominale (mm)
+3. Plica interno coscia (mm)
+4. Spalle (cm)
+5. Torace (cm)
+6. Bicipite (cm)
+7. Vita (cm)
+8. Fianchi (cm)
+9. Coscia (cm)
+
+COMPATIBILITÀ E MIGRAZIONE
+- Il database resta “misure-progressi-db”, versione 1, per aggiornare l’installazione esistente senza perdere i dati.
+- Peso e Plica addominale restano invariati.
+- Glutei viene copiato in Fianchi.
+- Vita ombellico viene copiata in Vita.
+- Coscia sotto gluteo viene copiata in Coscia.
+- Plica interno coscia, Spalle, Torace e Bicipite iniziano vuoti per i record precedenti.
+- I campi legacy vengono conservati nei record esistenti e nei backup JSON: nessun valore precedente viene cancellato.
+- L’importazione accetta sia backup MisureFitness sia JSON/CSV prodotti dalla precedente Misure & Progressi.
+
+FUNZIONI
+- Una registrazione per data, modificabile e aggiornabile.
+- Validazione delle misure e note fino a 500 caratteri.
+- Medie del periodo, variazioni, numero di rilevazioni e media mobile 7 giorni.
+- Trend medi settimanali e mensili per tutte le nove misure.
+- Storico completo con modifica della data selezionata.
+- Esportazione JSON, CSV completo e CSV del periodo filtrato.
+- Condivisione del backup JSON con fallback al download.
+- Importazione JSON/CSV con merge per data.
+- Installazione PWA e uso offline dopo il primo caricamento HTTPS.
+
+CONFERME DI CANCELLAZIONE
+Tutte le funzioni che cancellano dati richiedono una conferma aggiuntiva:
+- eliminazione della singola registrazione: dialogo + digitazione di CANCELLA;
+- cancellazione completa dell’archivio: dialogo + digitazione di CANCELLA.
+“Svuota campi” non elimina dati salvati e non richiede la conferma distruttiva.
+
+PUBBLICAZIONE
+Pubblicare tutti i file mantenendo la struttura, tramite HTTPS o localhost. Non aprire index.html direttamente con file:// perché service worker e installazione PWA possono essere limitati.
+
+DATI E BACKUP
+I dati sono salvati localmente in IndexedDB. Eseguire regolarmente un backup JSON. Il CSV usa separatore punto e virgola e codifica UTF-8 con BOM.
 
 CONTENUTO
-- index.html: interfaccia principale
-- styles.css: stile responsive per smartphone e desktop
-- app.js: archivio locale, calcoli, grafico, importazione ed esportazione
-- manifest.webmanifest: configurazione di installazione
-- sw.js: funzionamento offline
-- icons/icon.svg: icona dell'app
-
-AVVIO
-La PWA deve essere servita tramite HTTPS oppure in ambiente locale (localhost). Non aprire index.html direttamente con un doppio clic, perché i browser limitano service worker e installazione sulle pagine file://.
-
-Esempio in una cartella locale con un server statico già disponibile:
-1. Pubblicare tutti i file mantenendo la stessa struttura.
-2. Aprire l'indirizzo HTTPS nel browser.
-3. Usare “Installa app” quando proposto dal browser.
-
-DATI
-I dati sono salvati nel browser tramite IndexedDB. Al primo avvio l'archivio è vuoto e non contiene registrazioni di esempio: tutte le misure vengono inserite dall'utente oppure importate da un proprio backup.
-
-BACKUP
-Usare Archivio > Esporta JSON per il backup completo. Il pulsante “Condividi e salva backup” apre, quando supportato dal dispositivo, il menu nativo per scegliere File, servizi cloud o altre destinazioni disponibili; se la condivisione dei file non è supportata, l'app esegue il normale download JSON. Il CSV è pensato per consultazione e scambio con Excel. L'importazione accetta i backup JSON prodotti dall'app e i CSV con le stesse colonne dell'esportazione.
-
-TREND MEDI
-Nella sezione Andamento è disponibile una scheda aggiuntiva per analizzare una misura a scelta con raggruppamento settimanale o mensile. La finestra temporale può essere impostata liberamente tramite le date Dal e Al; ogni punto del grafico rappresenta la media delle rilevazioni disponibili nel relativo periodo.
-
-CAMPI REGISTRATI
-- Data
-- Peso (kg)
-- Plica addominale (mm)
-- Glutei (cm)
-- Vita ombellico (cm)
-- Coscia sotto gluteo (cm)
-- Note
+- index.html — interfaccia
+- styles.css — layout responsive
+- app.js — dati, migrazione, analisi, grafici, import/export
+- sw.js — funzionamento offline
+- manifest.webmanifest — installazione PWA
+- icons/ — icone applicazione

@@ -4,13 +4,19 @@ const DB_NAME = "misure-progressi-db";
 const DB_VERSION = 1;
 const STORE = "records";
 const SETTINGS = "settings";
+const APP_VERSION = "1.0.0";
 const METRICS = {
   weight: { label: "Peso", unit: "kg", decimals: 2 },
   abdominalFold: { label: "Plica addominale", unit: "mm", decimals: 1 },
-  glutes: { label: "Glutei", unit: "cm", decimals: 1 },
-  waistNavel: { label: "Vita ombellico", unit: "cm", decimals: 1 },
-  thighUnderGlute: { label: "Coscia sotto gluteo", unit: "cm", decimals: 1 }
+  innerThighFold: { label: "Plica interno coscia", unit: "mm", decimals: 1 },
+  shoulders: { label: "Spalle", unit: "cm", decimals: 1 },
+  chest: { label: "Torace", unit: "cm", decimals: 1 },
+  biceps: { label: "Bicipite", unit: "cm", decimals: 1 },
+  waist: { label: "Vita", unit: "cm", decimals: 1 },
+  hips: { label: "Fianchi", unit: "cm", decimals: 1 },
+  thigh: { label: "Coscia", unit: "cm", decimals: 1 }
 };
+const LEGACY_FIELD_MAP = { glutes: "hips", waistNavel: "waist", thighUnderGlute: "thigh" };
 
 let db;
 let records = [];
@@ -86,6 +92,36 @@ async function removeLegacyExampleData() {
   await storeRequest(SETTINGS, "readwrite", (store) => store.put({ key: "legacyExampleRemoved", value: true }));
 }
 
+function migrateRecordToV1(record) {
+  if (!record) return { record, changed: false };
+  const migrated = { ...record };
+  let changed = false;
+  for (const [legacyKey, currentKey] of Object.entries(LEGACY_FIELD_MAP)) {
+    if (!Number.isFinite(migrated[currentKey]) && Number.isFinite(migrated[legacyKey])) {
+      migrated[currentKey] = migrated[legacyKey];
+      changed = true;
+    }
+  }
+  for (const key of Object.keys(METRICS)) {
+    if (!(key in migrated)) { migrated[key] = null; changed = true; }
+  }
+  return { record: migrated, changed };
+}
+
+async function migrateExistingRecords() {
+  const migration = await storeRequest(SETTINGS, "readonly", (store) => store.get("misureFitnessV1Migration"));
+  if (migration) return;
+  const existing = await storeRequest(STORE, "readonly", (store) => store.getAll());
+  const updates = existing.map(migrateRecordToV1).filter((entry) => entry.changed).map((entry) => entry.record);
+  if (updates.length) {
+    const transaction = db.transaction(STORE, "readwrite");
+    const store = transaction.objectStore(STORE);
+    updates.forEach((record) => store.put(record));
+    await new Promise((resolve, reject) => { transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error); });
+  }
+  await storeRequest(SETTINGS, "readwrite", (store) => store.put({ key: "misureFitnessV1Migration", value: true, migratedAt: new Date().toISOString() }));
+}
+
 async function loadRecords() {
   records = await storeRequest(STORE, "readonly", (store) => store.getAll());
   records.sort((a, b) => a.date.localeCompare(b.date));
@@ -109,7 +145,8 @@ async function saveRecord(event) {
   event.preventDefault();
   const date = $("date").value;
   if (!date) return showFormMessage("Seleziona una data.", true);
-  const record = { date, notes: $("notes").value.trim(), updatedAt: new Date().toISOString() };
+  const existing = selectedRecord(date);
+  const record = { ...(existing || {}), date, notes: $("notes").value.trim(), updatedAt: new Date().toISOString(), appVersion: APP_VERSION };
   let hasMeasurement = false;
   for (const key of Object.keys(METRICS)) {
     const input = $(key);
@@ -196,12 +233,14 @@ function refreshTable(data) {
     const row = document.createElement("tr");
     row.innerHTML = `<td>${fmtDate.format(parseISODate(record.date))}</td>
       <td>${formatValue(record.weight, "weight")}</td><td>${formatValue(record.abdominalFold, "abdominalFold")}</td>
-      <td>${formatValue(record.glutes, "glutes")}</td><td>${formatValue(record.waistNavel, "waistNavel")}</td>
-      <td>${formatValue(record.thighUnderGlute, "thighUnderGlute")}</td><td>${escapeHtml(record.notes || "—")}</td>
+      <td>${formatValue(record.innerThighFold, "innerThighFold")}</td><td>${formatValue(record.shoulders, "shoulders")}</td>
+      <td>${formatValue(record.chest, "chest")}</td><td>${formatValue(record.biceps, "biceps")}</td>
+      <td>${formatValue(record.waist, "waist")}</td><td>${formatValue(record.hips, "hips")}</td>
+      <td>${formatValue(record.thigh, "thigh")}</td><td>${escapeHtml(record.notes || "—")}</td>
       <td><button class="table-action" data-edit-date="${record.date}" type="button">Modifica</button></td>`;
     body.appendChild(row);
   });
-  if (!data.length) body.innerHTML = `<tr><td colspan="8">Nessuna registrazione nel periodo selezionato.</td></tr>`;
+  if (!data.length) body.innerHTML = `<tr><td colspan="12">Nessuna registrazione nel periodo selezionato.</td></tr>`;
 }
 
 function drawChart(data, metricKey) {
@@ -410,9 +449,9 @@ function csvEscape(value) {
 }
 
 function buildCsv(data) {
-  const headers = ["date", "weight_kg", "abdominal_fold_mm", "glutes_cm", "waist_navel_cm", "thigh_under_glute_cm", "notes"];
+  const headers = ["date", "weight_kg", "abdominal_fold_mm", "inner_thigh_fold_mm", "shoulders_cm", "chest_cm", "biceps_cm", "waist_cm", "hips_cm", "thigh_cm", "notes"];
   const lines = [headers.join(";")];
-  data.forEach((r) => lines.push([r.date, r.weight, r.abdominalFold, r.glutes, r.waistNavel, r.thighUnderGlute, r.notes].map(csvEscape).join(";")));
+  data.forEach((r) => lines.push([r.date, r.weight, r.abdominalFold, r.innerThighFold, r.shoulders, r.chest, r.biceps, r.waist, r.hips, r.thigh, r.notes].map(csvEscape).join(";")));
   return `\ufeff${lines.join("\n")}`;
 }
 
@@ -425,8 +464,8 @@ function downloadFile(name, content, type) {
 }
 
 function buildBackupFile() {
-  const payload = { app: "Misure & Progressi", version: 1, exportedAt: new Date().toISOString(), records };
-  const name = `misure-backup-${localISODate()}.json`;
+  const payload = { app: "MisureFitness", version: APP_VERSION, databaseVersion: DB_VERSION, exportedAt: new Date().toISOString(), records };
+  const name = `misurefitness-backup-${localISODate()}.json`;
   const content = JSON.stringify(payload, null, 2);
   return { name, content, file: new File([content], name, { type: "application/json" }) };
 }
@@ -439,8 +478,8 @@ function exportJson() {
 async function shareBackup() {
   const backup = buildBackupFile();
   const shareData = {
-    title: "Backup Misure & Progressi",
-    text: "Backup completo dell’archivio Misure & Progressi",
+    title: "Backup MisureFitness",
+    text: "Backup completo dell’archivio MisureFitness",
     files: [backup.file]
   };
   try {
@@ -466,7 +505,7 @@ async function shareBackup() {
 }
 
 function exportCsv(data = records, suffix = "archivio") {
-  downloadFile(`misure-${suffix}-${localISODate()}.csv`, buildCsv(data), "text/csv;charset=utf-8");
+  downloadFile(`misurefitness-${suffix}-${localISODate()}.csv`, buildCsv(data), "text/csv;charset=utf-8");
 }
 
 function parseCsv(text) {
@@ -484,16 +523,33 @@ function parseCsv(text) {
   }
   row.push(field); if (row.some((cell) => cell.trim() !== "")) rows.push(row);
   if (rows.length < 2) return [];
+  const headers = rows[0].map((value) => value.replace(/^\ufeff/, "").trim().toLowerCase());
+  const index = (names) => names.map((name) => headers.indexOf(name)).find((value) => value >= 0) ?? -1;
+  const value = (cells, names) => { const i = index(names); return i >= 0 ? cells[i] : ""; };
   return rows.slice(1).map((cells) => ({
-    date: cells[0]?.replace(/^\ufeff/, "").trim(), weight: toNumber(cells[1]), abdominalFold: toNumber(cells[2]),
-    glutes: toNumber(cells[3]), waistNavel: toNumber(cells[4]), thighUnderGlute: toNumber(cells[5]), notes: cells[6] || ""
+    date: value(cells, ["date"]),
+    weight: toNumber(value(cells, ["weight_kg", "weight"])),
+    abdominalFold: toNumber(value(cells, ["abdominal_fold_mm", "abdominalfold"])),
+    innerThighFold: toNumber(value(cells, ["inner_thigh_fold_mm", "innerthighfold"])),
+    shoulders: toNumber(value(cells, ["shoulders_cm", "shoulders"])),
+    chest: toNumber(value(cells, ["chest_cm", "chest"])),
+    biceps: toNumber(value(cells, ["biceps_cm", "biceps"])),
+    waist: toNumber(value(cells, ["waist_cm", "waist", "waist_navel_cm"])),
+    hips: toNumber(value(cells, ["hips_cm", "hips", "glutes_cm"])),
+    thigh: toNumber(value(cells, ["thigh_cm", "thigh", "thigh_under_glute_cm"])),
+    notes: value(cells, ["notes"])
   }));
 }
 
 function normalizeImportedRecord(record) {
   if (!record || !/^\d{4}-\d{2}-\d{2}$/.test(record.date || "")) return null;
-  const clean = { date: record.date, notes: String(record.notes || "").slice(0, 500), updatedAt: new Date().toISOString() };
-  Object.keys(METRICS).forEach((key) => clean[key] = toNumber(record[key]));
+  const clean = { ...record, date: record.date, notes: String(record.notes || "").slice(0, 500), updatedAt: new Date().toISOString(), appVersion: APP_VERSION };
+  const aliases = { hips: ["hips", "glutes"], waist: ["waist", "waistNavel"], thigh: ["thigh", "thighUnderGlute"] };
+  Object.keys(METRICS).forEach((key) => {
+    const candidates = aliases[key] || [key];
+    const source = candidates.map((candidate) => record[candidate]).find((candidate) => candidate !== undefined && candidate !== null && candidate !== "");
+    clean[key] = toNumber(source);
+  });
   return clean;
 }
 
@@ -582,7 +638,7 @@ function bindEvents() {
   $("exportCsvBtn").addEventListener("click", () => exportCsv(records));
   $("exportPeriodCsvBtn").addEventListener("click", () => exportCsv(periodRecords(), "periodo"));
   $("importFile").addEventListener("change", (e) => e.target.files[0] && importFile(e.target.files[0]));
-  $("deleteRecordBtn").addEventListener("click", () => openConfirm({ title: "Eliminare la registrazione?", text: `La registrazione del ${fmtDate.format(parseISODate($("date").value))} verrà eliminata.`, action: deleteCurrentRecord }));
+  $("deleteRecordBtn").addEventListener("click", () => openConfirm({ title: "Eliminare la registrazione?", text: `La registrazione del ${fmtDate.format(parseISODate($("date").value))} verrà eliminata definitivamente.`, requireWord: true, action: deleteCurrentRecord }));
   $("deleteArchiveBtn").addEventListener("click", () => openConfirm({ title: "Cancellare tutto l’archivio?", text: "L’operazione è definitiva. Esporta prima un backup se vuoi conservare i dati.", requireWord: true, action: deleteArchive }));
   $("confirmInput").addEventListener("input", (e) => $("dialogConfirmBtn").disabled = e.target.value.trim().toUpperCase() !== "CANCELLA");
   $("confirmDialog").addEventListener("close", async () => {
@@ -609,6 +665,7 @@ async function init() {
     setDefaultDates(); bindEvents(); updateConnectionStatus();
     db = await openDatabase();
     await removeLegacyExampleData();
+    await migrateExistingRecords();
     await loadRecords();
     populateForm($("date").value);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
